@@ -5,6 +5,7 @@ module Parser where
 import Lexer
 import Token
 import SourcePos
+import Parser.Wrapper
 }
 
 %name parse
@@ -28,18 +29,18 @@ import SourcePos
 Expr        :: { Expression }
             : ident                 { Expression $1 }
 
-ExprList    :: { [Expression] }
-            : Expr                  { [$1]          }
-            | ExprList ',' Expr     { $2 : $1       }
-
-ExprBlock   :: { [Expression] }
-            : Expr                  { [$1]          }
-            | ExprBlock ';' Expr    { $2 : $1       }
-
 {
+--ExprList    :: { [Expression] }
+--            : Expr                  { [$1]          }
+--            | ExprList ',' Expr     { $2 : $1       }
+--
+--ExprBlock   :: { [Expression] }
+--            : Expr                  { [$1]          }
+--            | ExprBlock ';' Expr    { $2 : $1       }
+
 data Expression = Expression String
 
-parseError :: [Token] -> a
+parseError :: (Token, [String]) -> Parser a
 parseError _ = error "Parse error"
 
 

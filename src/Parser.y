@@ -12,7 +12,7 @@ import Parser.Wrapper
 %tokentype { Token }
 %error { parseError }
 %monad { Parser } { (>>=) } { return }
-%lexer { lexwrap } { Token Eof _ _ }
+%lexer { lexer } { Token Eof _ _ }
 %errorhandlertype explist
 
 %token
@@ -43,5 +43,7 @@ data Expression = Expression String
 parseError :: (Token, [String]) -> Parser a
 parseError _ = error "Parse error"
 
+lexer :: (Token -> Parser a) -> Parser a
+lexer = (lexerScan >>=)
 
 }

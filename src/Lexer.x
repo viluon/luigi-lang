@@ -3,9 +3,8 @@ module Lexer where
 
 import Token
 import SourcePos
+import Parser.Wrapper
 }
-
-%wrapper "monad"
 
 $digit = [0-9]
 $alpha = [a-zA-Z]
@@ -34,35 +33,52 @@ tokens :-
             \?                      { symbol QuestionMark               }
             \!                      { symbol ExclamationMark            }
             @identifier             { simply Identifier                 }
-            \"                      { begin string                      }
-<string>    \\.                     { simply (\s -> Escape (last s))    }
-<string>    \"                      { begin 0                           }
 
 {
-alexEOF :: Alex Token
+alexEOF :: Parser Token
 -- FIXME: we'd like the actual EOF position here
 alexEOF = return (Token Eof (SourcePos "" 0 0) (SourcePos "" 0 0))
 
-simply :: (String -> TokenClass) -> (AlexPosn, Char, [Byte], String) -> Int -> Alex Token
-simply t ((AlexPn _ row col), _, _, s) len = let pos = SourcePos "" row col
-                                             in let epos = pos `offsetBy` len
-                                                in return (Token (t s) pos epos)
+simply :: (String -> TokenClass) -> AlexInput -> Int -> Parser Token
+simply t (LexerInput (SourcePos _ row col) s _ _) len = let pos = SourcePos "" row col
+                                                           in let epos = pos `offsetBy` len
+                                                              in return (Token (t s) pos epos)
 
-symbol :: TokenClass -> (AlexPosn, Char, [Byte], String) -> Int -> Alex Token
-symbol t ((AlexPn _ row col), _, _, _) len = let pos = SourcePos "" row col
-                                             in let epos = pos `offsetBy` len
-                                                in return (Token t pos epos)
+symbol :: TokenClass -> AlexInput -> Int -> Parser Token
+symbol t (LexerInput (SourcePos _ row col) _ _ _) len = let pos = SourcePos "" row col
+                                                in let epos = pos `offsetBy` len
+                                                   in return (Token t pos epos)
 
 -- TODO
-beginString :: Alex Token
+beginString :: Parser Token
 beginString = undefined
 -- beginString = do
 --     mapState $ \s -> s {}
 --     setStartCode string
 --     lexerScan
 
-lexwrap :: (Token -> Alex a) -> Alex a
-lexwrap cont = do
-    token <- alexMonadScan
-    cont token
+--alex2parser :: Alex a -> Parser a
+--alex2parser alex = do
+--    case alex of
+--        Alex (Token c s e) -> Parser (Token c s e)
+
+--lexwrap :: (Token -> Alex a) -> Alex a
+--lexwrap cont = do
+--    token <- alexMonadScan
+--    cont token
+
+
+lexerScan :: Parser Token
+lexerScan = do
+    input     <- getInput
+    startCode <- getStartCode
+    case alexScan input startCode of
+        AlexEOF -> do
+            code <- getStartCode
+            case code of
+                0 -> (\p -> Token Eof p p) <$> getPos
+                _ -> failWith (Failure (lexiPos input) "unexpected <eof>")
+        AlexError (LexerInput pos str _ _) ->
+             failWith (UnexpectedCharacter pos (head str))
+        _ -> failWith (Failure (SourcePos "?" 0 0) "what")
 }

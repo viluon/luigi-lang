@@ -13,7 +13,7 @@ $alpha = [a-zA-Z]
 
 tokens :-
             $white+                 ;
-            "--".*                  { simply TComment                    }
+            "--".*                  { trivial TComment                   }
             \+                      { symbol TPlus                       }
             \-                      { symbol TMinus                      }
             \/                      { symbol TSlash                      }
@@ -30,10 +30,14 @@ tokens :-
             \}                      { symbol TCurlyClose                 }
             \)                      { symbol TParenClose                 }
             \]                      { symbol TSquareClose                }
+            \%                      { symbol TPercentSign                }
             \>                      { symbol TGreaterThan                }
             \?                      { symbol TQuestionMark               }
+            \<=                     { symbol TLessOrEqual                }
+            \>=                     { symbol TGreaterOrEqual             }
             \!                      { symbol TExclamationMark            }
             @identifier             { simply TIdentifier                 }
+<string>    \"                      { endString                          }
 
 {
 alexEOF :: Parser Token
@@ -50,24 +54,21 @@ symbol t (LexerInput (SourcePos _ row col) _ _ _) len = let pos = SourcePos "" r
                                                 in let epos = pos `offsetBy` len
                                                    in return (Token t pos epos)
 
+
+-- TODO: switch handling of trivials on/off
+trivial :: (String -> TokenClass) -> AlexInput -> Int -> Parser Token
+trivial _ _ _ = lexerScan
+
 -- TODO
 beginString :: Parser Token
-beginString = undefined
--- beginString = do
---     mapState $ \s -> s {}
---     setStartCode string
---     lexerScan
+beginString = do
+    setStartCode string
+    lexerScan
 
---alex2parser :: Alex a -> Parser a
---alex2parser alex = do
---    case alex of
---        Alex (Token c s e) -> Parser (Token c s e)
-
---lexwrap :: (Token -> Alex a) -> Alex a
---lexwrap cont = do
---    token <- alexMonadScan
---    cont token
-
+endString :: AlexInput -> Int -> Parser Token
+endString _ _ = do
+    setStartCode 0
+    lexerScan
 
 lexerScan :: Parser Token
 lexerScan = do

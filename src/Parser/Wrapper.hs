@@ -6,6 +6,7 @@ module Parser.Wrapper
     , ParseError( .. )
     , AlexInput( .. )
     , getStartCode
+    , setStartCode
     , alexGetByte
     , getState
     , getInput
@@ -86,6 +87,9 @@ getInput = Parser (\s -> ParseOK s LexerInput { lexiPos  = statePos  s
                                               , lexiPrev = statePrev s
                                               , lexiIdx  = stateIdx  s
                                               } )
+
+setStartCode :: Int -> Parser ()
+setStartCode n = Parser $ \s -> ParseOK (s { stateStartCode = n }) ()
 
 setInput :: AlexInput -> Parser ()
 setInput input = Parser (\s -> ParseOK (s {

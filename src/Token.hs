@@ -24,8 +24,11 @@ data TokenClass = TIdentifier String
                 | TCurlyClose
                 | TParenClose
                 | TSquareClose
+                | TPercentSign
                 | TGreaterThan
+                | TLessOrEqual
                 | TQuestionMark
+                | TGreaterOrEqual
                 | TExclamationMark
               deriving (Eq, Show)
 

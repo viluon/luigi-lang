@@ -8,41 +8,42 @@ import SourcePos
 import Parser.Wrapper
 }
 
-%name parseExpression Expr
+%name parseBlock ExprBlock
 %tokentype { Token }
 %error { parseError }
 %monad { Parser } { (>>=) } { return }
-%lexer { lexer } { Token Eof _ _ }
+%lexer { lexer } { Token TEof _ _ }
 %errorhandlertype explist
 
 %token
-    '+'             { Token Plus _ _                           }
-    '-'             { Token Minus _ _                          }
-    '/'             { Token Slash _ _                          }
-    '~'             { Token Tilde _ _                          }
-    ','             { Token Colon _ _                          }
-    ';'             { Token Semicolon _ _                      }
-    ident           { Token (Identifier $$) _ _                }
+    '+'             { Token TPlus _ _                           }
+    '-'             { Token TMinus _ _                          }
+    '/'             { Token TSlash _ _                          }
+    '~'             { Token TTilde _ _                          }
+    ','             { Token TColon _ _                          }
+    ';'             { Token TSemicolon _ _                      }
+    ident           { Token (TIdentifier $$) _ _                }
 
 %%
 
 Expr        :: { Expression }
-            : ident                 { Expression $1 }
+            : ident                 { Identifier $1 }
+
+ExprList    :: { [Expression] }
+            : Expr                  { [$1]          }
+            | ExprList ',' Expr     { $3 : $1       }
+
+ExprBlock   :: { [Expression] }
+            : Expr                  { [$1]          }
+            | ExprBlock ';' Expr    { $3 : $1       }
 
 {
---ExprList    :: { [Expression] }
---            : Expr                  { [$1]          }
---            | ExprList ',' Expr     { $2 : $1       }
---
---ExprBlock   :: { [Expression] }
---            : Expr                  { [$1]          }
---            | ExprBlock ';' Expr    { $2 : $1       }
 
-data Expression = Expression String
+data Expression = Identifier String
                 deriving (Show, Eq)
 
 parseError :: (Token, [String]) -> Parser a
-parseError _ = error "Parse error"
+parseError (t, _) = failWith (UnexpectedToken t)
 
 lexer :: (Token -> Parser a) -> Parser a
 lexer = (lexerScan >>=)

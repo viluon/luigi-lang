@@ -1,8 +1,8 @@
 
 module Parser.Wrapper
-    ( Parser
+    ( Parser( .. )
     , ParserState
-    , ParseResult
+    , ParseResult( .. )
     , ParseError( .. )
     , AlexInput( .. )
     , getStartCode
@@ -13,6 +13,7 @@ module Parser.Wrapper
     , getPos
     , failWith
     , runParser
+    , emptyParser
     ) where
 
 import Data.Int (Int64)
@@ -21,6 +22,8 @@ import Data.Word (Word8)
 
 import SourcePos
 import Token
+
+import Debug.Trace (trace)
 
 import Control.Monad
 import qualified Control.Monad.Fail as MonadFail
@@ -66,6 +69,7 @@ data AlexInput = LexerInput { lexiPos  :: !SourcePos
                             , lexiText :: !String
                             , lexiPrev :: !Char
                             , lexiIdx  :: !Int64 }
+                            deriving Show
 
 getState :: Parser ParserState
 getState = Parser (\s -> ParseOK s s)
@@ -98,18 +102,17 @@ alexGetByte :: AlexInput -> Maybe (Word8, AlexInput)
 alexGetByte LexerInput { lexiPos = p, lexiText = t, lexiIdx = n } =
     case t of
         [] -> Nothing
-        _ -> let (c:t') = t
-             in let b = fromIntegral (ord c)
-                in Just (b, LexerInput { lexiPos = advanceLexer p c
-                             , lexiText = t'
-                             , lexiPrev = c
-                             , lexiIdx = n + 1 })
+        (c:t') -> let b = fromIntegral (ord c)
+                  in  Just (b, LexerInput { lexiPos = advanceLexer p c
+                              , lexiText = t'
+                              , lexiPrev = c
+                              , lexiIdx = n + 1 })
 
 advanceLexer :: SourcePos -> Char -> SourcePos
 advanceLexer (SourcePos file row _) '\n' = SourcePos file (row + 1) 1
 advanceLexer pos                    _    = pos `offsetBy` 1
 
-runParser :: String -> String -> Parser a -> (Maybe a, [ParseError])
+runParser :: String -> String -> Parser a -> (Maybe a, [ParseError], Maybe ParserState)
 runParser path input parser =
     let initialState = ParserState {
           statePos       = SourcePos path 1 1
@@ -120,6 +123,9 @@ runParser path input parser =
         , stateErrors    = []
         , stateErrored   = False
     } in case doParse parser initialState of
-        ParseFail errors -> (Nothing, reverse errors)
-        ParseOK state result | stateErrored state -> (Nothing,     reverse $ stateErrors state)
-                             | otherwise          -> (Just result, reverse $ stateErrors state)
+        ParseFail errors -> (Nothing, reverse errors, Nothing)
+        ParseOK state result | stateErrored state -> (Nothing,     reverse $ stateErrors state, Just state)
+                             | otherwise          -> (Just result, reverse $ stateErrors state, Just state)
+
+emptyParser :: Parser (IO ())
+emptyParser = (Parser $ \s -> ParseOK s (putStrLn (show $ statePos s)))

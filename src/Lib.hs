@@ -8,4 +8,4 @@ import Parser.Wrapper
 main :: IO ()
 main = do
     line <- getLine
-    putStrLn (show (runParser "stdin" line parseExpression))
+    putStrLn (show (runParser "stdin" line parseBlock))

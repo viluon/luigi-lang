@@ -4,6 +4,7 @@ module Lexer where
 import Token
 import SourcePos
 import Parser.Wrapper
+import Debug.Trace(trace)
 }
 
 $digit = [0-9]
@@ -12,37 +13,37 @@ $alpha = [a-zA-Z]
 
 tokens :-
             $white+                 ;
-            "--".*                  { simply Comment                    }
-            \+                      { symbol Plus                       }
-            \-                      { symbol Minus                      }
-            \/                      { symbol Slash                      }
-            \~                      { symbol Tilde                      }
-            \,                      { symbol Colon                      }
-            =                       { symbol Equals                     }
-            \*                      { symbol Asterisk                   }
-            \<                      { symbol LessThan                   }
-            _                       { symbol Wildcard                   }
-            \;                      { symbol Semicolon                  }
-            \{                      { symbol CurlyOpen                  }
-            \(                      { symbol ParenOpen                  }
-            \[                      { symbol SquareOpen                 }
-            \}                      { symbol CurlyClose                 }
-            \)                      { symbol ParenClose                 }
-            \]                      { symbol SquareClose                }
-            \>                      { symbol GreaterThan                }
-            \?                      { symbol QuestionMark               }
-            \!                      { symbol ExclamationMark            }
-            @identifier             { simply Identifier                 }
+            "--".*                  { simply TComment                    }
+            \+                      { symbol TPlus                       }
+            \-                      { symbol TMinus                      }
+            \/                      { symbol TSlash                      }
+            \~                      { symbol TTilde                      }
+            \,                      { symbol TColon                      }
+            =                       { symbol TEquals                     }
+            \*                      { symbol TAsterisk                   }
+            \<                      { symbol TLessThan                   }
+            _                       { symbol TWildcard                   }
+            \;                      { symbol TSemicolon                  }
+            \{                      { symbol TCurlyOpen                  }
+            \(                      { symbol TParenOpen                  }
+            \[                      { symbol TSquareOpen                 }
+            \}                      { symbol TCurlyClose                 }
+            \)                      { symbol TParenClose                 }
+            \]                      { symbol TSquareClose                }
+            \>                      { symbol TGreaterThan                }
+            \?                      { symbol TQuestionMark               }
+            \!                      { symbol TExclamationMark            }
+            @identifier             { simply TIdentifier                 }
 
 {
 alexEOF :: Parser Token
 -- FIXME: we'd like the actual EOF position here
-alexEOF = return (Token Eof (SourcePos "" 0 0) (SourcePos "" 0 0))
+alexEOF = return (Token TEof (SourcePos "" 0 0) (SourcePos "" 0 0))
 
 simply :: (String -> TokenClass) -> AlexInput -> Int -> Parser Token
 simply t (LexerInput (SourcePos _ row col) s _ _) len = let pos = SourcePos "" row col
                                                            in let epos = pos `offsetBy` len
-                                                              in return (Token (t s) pos epos)
+                                                              in return (Token (t $ take len s) pos epos)
 
 symbol :: TokenClass -> AlexInput -> Int -> Parser Token
 symbol t (LexerInput (SourcePos _ row col) _ _ _) len = let pos = SourcePos "" row col
@@ -76,16 +77,15 @@ lexerScan = do
         AlexEOF -> do
             code <- getStartCode
             case code of
-                0 -> (\p -> Token Eof p p) <$> getPos
+                0 -> (\p -> Token TEof p p) <$> getPos
                 _ -> failWith (Failure (lexiPos input) "unexpected <eof>")
         AlexError (LexerInput pos str _ _) ->
              failWith (UnexpectedCharacter pos (head str))
         AlexSkip input' _ -> do
-            setInput input'
+            trace "AlexSkip" setInput input'
             lexerScan
         AlexToken input' _ action -> do
             setInput input'
             -- action :: AlexInput -> Int -> Parser Token
-            action input (fromIntegral $ lexiIdx input' - lexiIdx input)
-        _ -> failWith (Failure (SourcePos "?" 0 0) "no handler for Alex result")
+            action (trace ("AlexToken: " ++ (show input)) input) (fromIntegral $ lexiIdx input' - lexiIdx input)
 }

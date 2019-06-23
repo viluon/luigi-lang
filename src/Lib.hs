@@ -2,5 +2,10 @@ module Lib
     ( main
     ) where
 
+import Parser
+import Parser.Wrapper
+
 main :: IO ()
-main = putStrLn "hello world"
+main = do
+    line <- getLine
+    putStrLn (show (runParser "stdin" line parseExpression))

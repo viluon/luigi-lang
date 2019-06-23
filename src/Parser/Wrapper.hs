@@ -9,8 +9,10 @@ module Parser.Wrapper
     , alexGetByte
     , getState
     , getInput
+    , setInput
     , getPos
     , failWith
+    , runParser
     ) where
 
 import Data.Int (Int64)
@@ -24,13 +26,13 @@ import Control.Monad
 import qualified Control.Monad.Fail as MonadFail
 
 data ParserState = ParserState {
-      statePos  :: !SourcePos
-    , stateText :: String
-    , statePrev :: !Char
-    , stateIdx  :: !Int64
-    , stateMode :: !Int
-    , stateErrors  :: [ParseError]
-    , stateErrored :: Bool
+      statePos       :: !SourcePos
+    , stateText      :: String
+    , statePrev      :: !Char
+    , stateIdx       :: !Int64
+    , stateStartCode :: !Int
+    , stateErrors    :: [ParseError]
+    , stateErrored   :: Bool
 } deriving Show
 
 data ParseResult a = ParseOK ParserState a
@@ -72,7 +74,7 @@ getPos :: Parser SourcePos
 getPos = Parser $ \s -> ParseOK s (statePos s)
 
 getStartCode :: Parser Int
-getStartCode = Parser $ \s -> ParseOK s (stateMode s)
+getStartCode = Parser $ \s -> ParseOK s (stateStartCode s)
 
 getInput :: Parser AlexInput
 getInput = Parser (\s -> ParseOK s LexerInput { lexiPos  = statePos  s
@@ -80,6 +82,14 @@ getInput = Parser (\s -> ParseOK s LexerInput { lexiPos  = statePos  s
                                               , lexiPrev = statePrev s
                                               , lexiIdx  = stateIdx  s
                                               } )
+
+setInput :: AlexInput -> Parser ()
+setInput input = Parser (\s -> ParseOK (s {
+          statePos  = lexiPos  input
+        , stateText = lexiText input
+        , statePrev = lexiPrev input
+        , stateIdx  = lexiIdx  input
+    })())
 
 failWith :: ParseError -> Parser a
 failWith err = Parser $ \s -> ParseFail (err:stateErrors s)
@@ -98,3 +108,18 @@ alexGetByte LexerInput { lexiPos = p, lexiText = t, lexiIdx = n } =
 advanceLexer :: SourcePos -> Char -> SourcePos
 advanceLexer (SourcePos file row _) '\n' = SourcePos file (row + 1) 1
 advanceLexer pos                    _    = pos `offsetBy` 1
+
+runParser :: String -> String -> Parser a -> (Maybe a, [ParseError])
+runParser path input parser =
+    let initialState = ParserState {
+          statePos       = SourcePos path 1 1
+        , stateText      = input
+        , statePrev      = '\n'
+        , stateIdx       = 0
+        , stateStartCode = 0
+        , stateErrors    = []
+        , stateErrored   = False
+    } in case doParse parser initialState of
+        ParseFail errors -> (Nothing, reverse errors)
+        ParseOK state result | stateErrored state -> (Nothing,     reverse $ stateErrors state)
+                             | otherwise          -> (Just result, reverse $ stateErrors state)

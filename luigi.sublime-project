@@ -1,0 +1,15 @@
+{
+	"folders":
+	[
+		{
+			"path": "/home/viluon/Projects/langdev/llvm-tutorial"
+		},
+		{
+			"folder_exclude_patterns":
+			[
+				".stack-work"
+			],
+			"path": "."
+		}
+	]
+}

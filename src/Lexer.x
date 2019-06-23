@@ -80,5 +80,12 @@ lexerScan = do
                 _ -> failWith (Failure (lexiPos input) "unexpected <eof>")
         AlexError (LexerInput pos str _ _) ->
              failWith (UnexpectedCharacter pos (head str))
-        _ -> failWith (Failure (SourcePos "?" 0 0) "what")
+        AlexSkip input' _ -> do
+            setInput input'
+            lexerScan
+        AlexToken input' _ action -> do
+            setInput input'
+            -- action :: AlexInput -> Int -> Parser Token
+            action input (fromIntegral $ lexiIdx input' - lexiIdx input)
+        _ -> failWith (Failure (SourcePos "?" 0 0) "no handler for Alex result")
 }

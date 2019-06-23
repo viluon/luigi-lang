@@ -8,7 +8,7 @@ import SourcePos
 import Parser.Wrapper
 }
 
-%name parse
+%name parseExpression Expr
 %tokentype { Token }
 %error { parseError }
 %monad { Parser } { (>>=) } { return }
@@ -39,6 +39,7 @@ Expr        :: { Expression }
 --            | ExprBlock ';' Expr    { $2 : $1       }
 
 data Expression = Expression String
+                deriving (Show, Eq)
 
 parseError :: (Token, [String]) -> Parser a
 parseError _ = error "Parse error"

@@ -5,6 +5,7 @@ import Token
 import SourcePos
 import Parser.Wrapper
 import Debug.Trace(trace)
+import Data.Char (digitToInt)
 }
 
 $digit = [0-9]
@@ -36,6 +37,7 @@ tokens :-
             \<=                     { symbol TLessOrEqual                }
             \>=                     { symbol TGreaterOrEqual             }
             \!                      { symbol TExclamationMark            }
+            $digit+                 { simply $ TInteger . parseNumber 10 }
             @identifier             { simply TIdentifier                 }
 <string>    \"                      { endString                          }
 
@@ -46,14 +48,20 @@ alexEOF = return (Token TEof (SourcePos "" 0 0) (SourcePos "" 0 0))
 
 simply :: (String -> TokenClass) -> AlexInput -> Int -> Parser Token
 simply t (LexerInput (SourcePos _ row col) s _ _) len = let pos = SourcePos "" row col
-                                                           in let epos = pos `offsetBy` len
-                                                              in return (Token (t $ take len s) pos epos)
+                                                        in let epos = pos `offsetBy` len
+                                                           in return (Token (t $ take len s) pos epos)
 
 symbol :: TokenClass -> AlexInput -> Int -> Parser Token
 symbol t (LexerInput (SourcePos _ row col) _ _ _) len = let pos = SourcePos "" row col
-                                                in let epos = pos `offsetBy` len
-                                                   in return (Token t pos epos)
+                                                        in let epos = pos `offsetBy` len
+                                                           in return (Token t pos epos)
 
+-- number :: Num a => (a -> TokenClass) -> AlexInput -> Int -> Parser Token
+-- number t (LexerInput pos s _ _) len = let epos = pos `offsetBy` len
+--                                       in return (Token (t $ take len s) pos epos)
+
+parseNumber :: Num a => a -> String -> a
+parseNumber base = foldl (\acc digit -> acc * base + fromIntegral (digitToInt digit)) 0
 
 -- TODO: switch handling of trivials on/off
 trivial :: (String -> TokenClass) -> AlexInput -> Int -> Parser Token

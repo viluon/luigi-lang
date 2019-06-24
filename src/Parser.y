@@ -26,71 +26,99 @@ import Parser.Wrapper
     '/'             { Token TSlash _ _                          }
     '~'             { Token TTilde _ _                          }
     ','             { Token TColon _ _                          }
+    '='             { Token TEquals _ _                         }
     '<'             { Token TLessThan _ _                       }
     '*'             { Token TAsterisk _ _                       }
     ';'             { Token TSemicolon _ _                      }
+    '{'             { Token TCurlyOpen _ _                      }
     '('             { Token TParenOpen _ _                      }
-    ')'             { Token TParenClose _ _                     }
     '['             { Token TSquareOpen _ _                     }
+    '}'             { Token TCurlyClose _ _                     }
+    ')'             { Token TParenClose _ _                     }
     ']'             { Token TSquareClose _ _                    }
     '%'             { Token TPercentSign _ _                    }
     '>'             { Token TGreaterThan _ _                    }
     '<='            { Token TLessOrEqual _ _                    }
     '>='            { Token TGreaterOrEqual _ _                 }
     ident           { Token (TIdentifier $$) _ _                }
+    int             { Token (TInteger $$) _ _                   }
+    float           { Token (TFloat $$) _ _                     }
 
 %%
 
 Expr         :: { Expression }
-             : ident                    { Identifier $1          }
-             | ListValue                { $1                     }
-             | Expr '+' Expr            { OpPlus           $1 $3 }
-             | Expr '-' Expr            { OpMinus          $1 $3 }
-             | Expr '/' Expr            { OpDiv            $1 $3 }
-             | Expr '%' Expr            { OpMod            $1 $3 }
-             | Expr '*' Expr            { OpTimes          $1 $3 }
-             | Expr '<' Expr            { OpLessThan       $1 $3 }
-             | Expr '>' Expr            { OpGreaterThan    $1 $3 }
-             | Expr '<=' Expr           { OpLessOrEqual    $1 $3 }
-             | Expr '>=' Expr           { OpGreaterOrEqual $1 $3 }
-             | '(' Expr ')'             { $2                     }
-             | '-' Expr %prec NEG       { OpNegate $2            }
+             :  ident                    { Identifier $1                            }
+             |  int                      { IntegerConstant $1                       }
+             |  float                    { FloatConstant $1                         }
+             |  Call                     { $1                                       }
+             |  Binding                  { $1                                       }
+             |  ListValue                { $1                                       }
+             |  Expr '+' Expr            { ArithmeticOperation Plus           $1 $3 }
+             |  Expr '-' Expr            { ArithmeticOperation Minus          $1 $3 }
+             |  Expr '/' Expr            { ArithmeticOperation Div            $1 $3 }
+             |  Expr '%' Expr            { ArithmeticOperation Mod            $1 $3 }
+             |  Expr '*' Expr            { ArithmeticOperation Times          $1 $3 }
+             |  Expr '<' Expr            { ComparisonOperation LessThan       $1 $3 }
+             |  Expr '>' Expr            { ComparisonOperation GreaterThan    $1 $3 }
+             |  Expr '<=' Expr           { ComparisonOperation LessOrEqual    $1 $3 }
+             |  Expr '>=' Expr           { ComparisonOperation GreaterOrEqual $1 $3 }
+             |  '(' Expr ')'             { $2                                       }
+             |  '-' Expr %prec NEG       { ArithmeticNegate $2                      }
+             |  '{' ExprBlock '}'        { Block $2                                 }
 
 ExprListRev  :: { [Expression] }
-             : Expr                     { [$1]          }
-             | ExprListRev ',' Expr     { $3 : $1       }
+             :  Expr                     { [$1]          }
+             |  ExprListRev ',' Expr     { $3 : $1       }
 
 ExprList     :: { [Expression] }
-             :  ExprListRev             { reverse $1    }
+             :  ExprListRev              { reverse $1    }
 
 ExprBlockRev :: { [Expression] }
-             : Expr                     { [$1]          }
-             | ExprBlockRev ';' Expr    { $3 : $1       }
+             :  Expr                     { [$1]          }
+             |  ExprBlockRev ';' Expr    { $3 : $1       }
 
 ExprBlock    :: { [Expression] }
-             : ExprBlockRev             { reverse $1    }
+             :  ExprBlockRev             { reverse $1    }
 
 ListValue    :: { Expression }
-             : '[' ']'                  { ListValue []  }
-             | '[' ExprList ']'         { ListValue $2  }
+             :  '[' ']'                  { ListValue []  }
+             |  '[' ExprList ']'         { ListValue $2  }
+
+Binding      :: { Expression }
+             :  Expr '=' '>' ident       { ImmutableBinding $1 $4 }
+             |  Expr '~' '>' ident       {   MutableBinding $1 $4 }
+
+Call         :: { Expression }
+             :  ident '(' ')'            { FunctionCall $1 []     }
+             |  ident '(' ExprList ')'   { FunctionCall $1 $3     }
 
 {
 
 data Expression = Identifier String
                 | IntegerConstant Int
-                | DoubleConstant Double
+                | FloatConstant Double
+                | Block [Expression]
                 | ListValue [Expression]
-                | OpMod Expression Expression
-                | OpDiv Expression Expression
-                | OpPlus Expression Expression
-                | OpMinus Expression Expression
-                | OpTimes Expression Expression
-                | OpNegate Expression
-                | OpLessThan Expression Expression
-                | OpGreaterThan Expression Expression
-                | OpLessOrEqual Expression Expression
-                | OpGreaterOrEqual Expression Expression
+                | FunctionCall String [Expression]
+                | MutableBinding Expression String
+                | ImmutableBinding Expression String
+                | ArithmeticNegate Expression
+                | ArithmeticOperation ArithmeticOperator Expression Expression
+                | ComparisonOperation ComparisonOperator Expression Expression
                 deriving (Show, Eq)
+
+data ArithmeticOperator = Mod
+                        | Div
+                        | Plus
+                        | Minus
+                        | Times
+                        deriving (Show, Eq)
+
+data ComparisonOperator = LessThan
+                        | GreaterThan
+                        | LessOrEqual
+                        | GreaterOrEqual
+                        deriving (Show, Eq)
 
 parseError :: (Token, [String]) -> Parser a
 parseError (t, _) = failWith (UnexpectedToken t)

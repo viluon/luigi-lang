@@ -5,7 +5,8 @@ import SourcePos
 
 data TokenClass = TIdentifier String
                 | TComment String
-                | TNumber Double
+                | TFloat Double
+                | TInteger Int
                 | TEscape Char
                 | TEof
                 | TPlus

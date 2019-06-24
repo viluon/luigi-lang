@@ -21,7 +21,12 @@ description:         Please see the README on GitHub at <https://github.com/vilu
 
 dependencies:
 - base >= 4.7 && < 5
+- mtl >= 2.2.2 && < 2.3
 - array >= 0.5.3 && < 0.6
+- llvm-hs >= 8.0.0 && < 8.1
+- llvm-hs-pure >= 8.0.0 && < 8.1
+- containers >= 0.6.0.0 && < 0.7
+- bytestring >= 0.10.8.2 && < 0.11
 
 library:
   source-dirs: src

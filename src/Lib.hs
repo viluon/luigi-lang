@@ -26,6 +26,6 @@ process mod source = do
 
 main :: IO ()
 main = do
-    line <- getContents
-    process initModule line
+    source <- getContents
+    process initModule source
     return ()

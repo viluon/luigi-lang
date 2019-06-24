@@ -15,6 +15,7 @@ import Parser.Wrapper
 %lexer { lexer } { Token TEof _ _ }
 %errorhandlertype explist
 
+%right 'if' 'then' 'else'
 %left '~>' '=>'
 %nonassoc '<' '>' '<=' '>=' '!=' '=='
 %left '+' '-'
@@ -23,10 +24,12 @@ import Parser.Wrapper
 %left NEG
 
 %token
+    'if'            { Token KIf _ _                             }
+    'then'          { Token KThen _ _                           }
+    'else'          { Token KElse _ _                           }
     '+'             { Token TPlus _ _                           }
     '-'             { Token TMinus _ _                          }
     '/'             { Token TSlash _ _                          }
-    '~'             { Token TTilde _ _                          }
     ','             { Token TColon _ _                          }
     '=='            { Token TEquals _ _                         }
     '<'             { Token TLessThan _ _                       }
@@ -39,7 +42,6 @@ import Parser.Wrapper
     '}'             { Token TCurlyClose _ _                     }
     ')'             { Token TParenClose _ _                     }
     ']'             { Token TSquareClose _ _                    }
-    '='             { Token TEqualsSign _ _                     }
     '%'             { Token TPercentSign _ _                    }
     '>'             { Token TGreaterThan _ _                    }
     '<='            { Token TLessOrEqual _ _                    }
@@ -54,15 +56,12 @@ import Parser.Wrapper
 
 %%
 
-Binding      :: { Expression }
-             :  Expr '=>' ident       { ImmutableBinding $1 $3 }
-             |  Expr '~>' ident       {   MutableBinding $1 $3 }
-
 Expr         :: { Expression }
              :  ident                    { Identifier $1                            }
              |  int                      { IntegerConstant $1                       }
              |  float                    { FloatConstant $1                         }
              |  Call                     { $1                                       }
+             |  IfExpr                   { $1                                       }
              |  Binding                  { $1                                       }
              |  Function                 { $1                                       }
              |  ListValue                { $1                                       }
@@ -80,6 +79,14 @@ Expr         :: { Expression }
              |  '(' Expr ')'             { $2                                       }
              |  '-' Expr %prec NEG       { ArithmeticNegate $2                      }
              |  '{' ExprBlock '}'        { Block $2                                 }
+
+Binding      :: { Expression }
+             :  Expr '=>' ident       { ImmutableBinding $1 $3 }
+             |  Expr '~>' ident       {   MutableBinding $1 $3 }
+
+IfExpr       :: { Expression }
+             :  'if' Expr 'then' Expr              { If $2 $4 Nothing    }
+             |  'if' Expr 'then' Expr 'else' Expr  { If $2 $4 (Just $6)  }
 
 ExprListRev  :: { [Expression] }
              :  Expr                     { [$1]          }
@@ -124,6 +131,7 @@ data Expression = Identifier String
                 | FunctionCall String [Expression]
                 | MutableBinding Expression String
                 | ImmutableBinding Expression String
+                | If Expression Expression (Maybe Expression)
                 | FunctionDefinition String [String] Expression
                 | ArithmeticNegate Expression
                 | ArithmeticOperation ArithmeticOperator Expression Expression

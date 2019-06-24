@@ -16,6 +16,9 @@ $alpha = [a-zA-Z]
 tokens :-
             $white+                 ;
             "--".*                  { trivial TComment                            }
+            "if"                    { symbol KIf                                  }
+            "then"                  { symbol KThen                                }
+            "else"                  { symbol KElse                                }
             \+                      { symbol TPlus                                }
             \-                      { symbol TMinus                               }
             \/                      { symbol TSlash                               }

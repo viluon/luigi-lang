@@ -24,10 +24,12 @@ import qualified LLVM.AST.FloatingPointPredicate as FP
 annotateArgTypes :: [String] -> [(AST.Type, AST.Name)]
 annotateArgTypes = map (\n -> (double, AST.Name $ toShort $ pack n))
 
+one = const2operand $ C.Float (F.Double 1.0)
+zero = const2operand $ C.Float (F.Double 0.0)
+
 codegen :: P.Expression -> LLVM ()
 codegen e | trace ("codegen: " ++ show e) False = undefined
 codegen (P.FunctionDefinition name args body) = do
-    -- FIXME: wrong, should be a pointer type??
     define double name fnArgs blks
     where
         fnArgs = annotateArgTypes args
@@ -38,11 +40,7 @@ codegen (P.FunctionDefinition name args body) = do
                 var <- alloca double
                 store var (local (AST.Name $ toShort $ pack argName))
                 assign argName var
-            let body' = case body of
-                    _ | trace "body' stuff" False -> undefined
-                    P.Block exprs -> last exprs
-                    e -> e
-                in cgen body' >>= ret
+            cgen body >>= ret
 
 codegen exp = do
     define double "main" [] blks
@@ -87,8 +85,43 @@ cgen (P.ComparisonOperation op l r) = do
                     P.LessOrEqual -> cmp FP.ULE
                     P.GreaterOrEqual -> cmp FP.UGE
 
+cgen (P.If cond bdy elseBdy) = do
+    ifthen <- addBlock "if.then"
+    ifelse <- addBlock "if.else"
+    ifexit <- addBlock "if.exit"
+
+    condition <- cgen cond
+    test <- fcmp FP.ONE zero condition
+    cbr test ifthen ifelse
+
+    setBlock ifthen
+    body <- cgen bdy
+    br ifexit
+    ifthen <- getBlock
+
+    elseBody <- do
+                    setBlock ifelse
+                    code <- case elseBdy of
+                            Nothing -> cgen (P.IntegerConstant 0)
+                            Just e  -> cgen e
+                    br ifexit
+                    ifelse <- getBlock
+                    return code
+
+    setBlock ifexit
+    phi double [(body, ifthen), (elseBody, ifelse)]
+
+cgen (P.Block exprs) = do
+    let n = length exprs
+     in forM (take (n - 1) exprs) $ \e -> cgen e
+    cgen $ last exprs
+
 liftError :: ExceptT String IO a -> IO a
 liftError = runExceptT >=> either fail return
+
+if' :: Bool -> a -> a -> a
+if' True  x _ = x
+if' False _ y = y
 
 codegenWrapper :: AST.Module -> [P.Expression] -> IO AST.Module
 codegenWrapper mod functions = withContext $ \context ->

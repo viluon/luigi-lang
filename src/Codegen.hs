@@ -263,3 +263,9 @@ execCodegen m = execState (runCodegen m) emptyCodegen
 
 emptyCodegen :: CodegenState
 emptyCodegen = CodegenState (Name $ toShort $ pack entryBlockName) Map.empty [] 1 0 Map.empty
+
+const2operand :: C.Constant -> Operand
+const2operand = ConstantOperand
+
+phi :: Type -> [(Operand, Name)] -> Codegen Operand
+phi tpe incoming = instr $ Phi tpe incoming []

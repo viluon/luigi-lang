@@ -8,6 +8,9 @@ data TokenClass = TIdentifier String
                 | TFloat Double
                 | TInteger Int
                 | TEscape Char
+                | KIf
+                | KThen
+                | KElse
                 | TEof
                 | TPlus
                 | TMinus

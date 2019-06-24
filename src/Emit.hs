@@ -25,6 +25,7 @@ annotateArgTypes :: [String] -> [(AST.Type, AST.Name)]
 annotateArgTypes = map (\n -> (double, AST.Name $ toShort $ pack n))
 
 codegen :: P.Expression -> LLVM ()
+codegen e | trace ("codegen: " ++ show e) False = undefined
 codegen (P.FunctionDefinition name args body) = do
     -- FIXME: wrong, should be a pointer type??
     define double name fnArgs blks
@@ -33,11 +34,12 @@ codegen (P.FunctionDefinition name args body) = do
         blks = createBlocks $ execCodegen $ do
             entry <- addBlock entryBlockName
             setBlock entry
-            forM args $ \a -> do
+            forM args $ \argName -> do
                 var <- alloca double
-                store var (local (AST.Name $ toShort $ pack a))
-                assign a var
+                store var (local (AST.Name $ toShort $ pack argName))
+                assign argName var
             let body' = case body of
+                    _ | trace "body' stuff" False -> undefined
                     P.Block exprs -> last exprs
                     e -> e
                 in cgen body' >>= ret
@@ -58,9 +60,30 @@ cgen e | trace ("cgen: " ++ show e) False = undefined
 cgen (P.FloatConstant n) = return $ constOp $ C.Float (F.Double n)
 cgen (P.IntegerConstant n) = return $ constOp $ C.Float (F.Double $ fromIntegral n)
 cgen (P.Identifier i) = getvar i >>= load
+
 cgen (P.FunctionCall fn args) = do
     largs <- mapM cgen args
-    call (externf (AST.Name $ toShort $ pack fn)) largs
+    call (externf (length largs) (AST.Name $ toShort $ pack fn)) largs
+
+cgen (P.ArithmeticOperation op l r) = do
+    left <- cgen l
+    right <- cgen r
+    fn left right
+        where fn = case op of
+                    P.Div -> fdiv
+                    P.Plus -> fadd
+                    P.Times -> fmul
+                    P.Minus -> fsub
+
+cgen (P.ComparisonOperation op l r) = do
+    left <- cgen l
+    right <- cgen r
+    fn left right
+        where fn = case op of
+                    P.LessThan -> cmp FP.ULT
+                    P.GreaterThan -> cmp FP.UGT
+                    P.LessOrEqual -> cmp FP.ULE
+                    P.GreaterOrEqual -> cmp FP.UGE
 
 liftError :: ExceptT String IO a -> IO a
 liftError = runExceptT >=> either fail return

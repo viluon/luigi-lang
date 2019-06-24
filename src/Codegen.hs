@@ -141,11 +141,11 @@ fresh = do
 local :: Name -> Operand
 local = LocalReference Codegen.double
 
-externf :: Name -> Operand
-externf = ConstantOperand . C.GlobalReference (PointerType {
+externf :: Int -> Name -> Operand
+externf argCount = ConstantOperand . C.GlobalReference (PointerType {
       pointerReferent = FunctionType {
           resultType = Codegen.double
-        , argumentTypes = []
+        , argumentTypes = take argCount (repeat Codegen.double)
         , isVarArg = False
       }
     , pointerAddrSpace = AddrSpace 0
@@ -176,6 +176,13 @@ instr ins = do
     let i = stack blk
     modifyBlock (blk { stack = (ref := ins) : i } )
     return $ local ref
+
+unnamedInstr :: Instruction -> Codegen ()
+unnamedInstr ins = do
+    blk <- current
+    let i = stack blk
+    modifyBlock (blk { stack = (Do ins) : i })
+    return ()
 
 -- terminators are rets & branches
 terminator :: Named Terminator -> Codegen (Named Terminator)
@@ -208,6 +215,12 @@ fmul a b = instr $ FMul noFastMathFlags a b []
 fdiv :: Operand -> Operand -> Codegen Operand
 fdiv a b = instr $ FDiv noFastMathFlags a b []
 
+fcmp :: FP.FloatingPointPredicate -> Operand -> Operand -> Codegen Operand
+fcmp cond a b = instr $ FCmp cond a b []
+
+uitofp :: Type -> Operand -> Codegen Operand
+uitofp tpe a = instr $ UIToFP a tpe []
+
 -- branch
 br :: Name -> Codegen (Named Terminator)
 br val = terminator $ Do $ Br val []
@@ -220,6 +233,11 @@ cbr cond tr fl = terminator $ Do $ CondBr cond tr fl []
 ret :: Operand -> Codegen (Named Terminator)
 ret val = terminator $ Do $ Ret (Just val) []
 
+cmp :: FP.FloatingPointPredicate -> Operand -> Operand -> Codegen Operand
+cmp pred a b = do
+    test <- fcmp pred a b
+    uitofp Codegen.double test
+
 -- helper for transforming arg lists
 toArgs :: [Operand] -> [(Operand, [A.ParameterAttribute])]
 toArgs = map (\x -> (x, []))
@@ -231,8 +249,8 @@ call fn args = instr $ Call Nothing CC.C [] (Right fn) (toArgs args) [] []
 alloca :: Type -> Codegen Operand
 alloca tpe = instr $ Alloca tpe Nothing 0 []
 
-store :: Operand -> Operand -> Codegen Operand
-store ptr val = instr $ Store False ptr val Nothing 0 []
+store :: Operand -> Operand -> Codegen ()
+store ptr val = unnamedInstr $ Store False ptr val Nothing 0 []
 
 load :: Operand -> Codegen Operand
 load ptr = instr $ Load False ptr Nothing 0 []

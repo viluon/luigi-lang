@@ -91,10 +91,12 @@ lexerScan = do
         AlexError (LexerInput pos str _ _) ->
              failWith (UnexpectedCharacter pos (head str))
         AlexSkip input' _ -> do
-            trace "AlexSkip" setInput input'
+            setInput input'
+            -- trace "AlexSkip" setInput input'
             lexerScan
         AlexToken input' _ action -> do
             setInput input'
             -- action :: AlexInput -> Int -> Parser Token
-            action (trace ("AlexToken: " ++ (show input)) input) (fromIntegral $ lexiIdx input' - lexiIdx input)
+            action input (fromIntegral $ lexiIdx input' - lexiIdx input)
+            -- trace ("AlexToken: " ++ (show input)) input
 }

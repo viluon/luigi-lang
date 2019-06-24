@@ -21,10 +21,11 @@ tokens :-
             \/                      { symbol TSlash                               }
             \~                      { symbol TTilde                               }
             \,                      { symbol TColon                               }
-            =                       { symbol TEquals                              }
+            ==                      { symbol TEquals                              }
             \*                      { symbol TAsterisk                            }
             \<                      { symbol TLessThan                            }
             _                       { symbol TWildcard                            }
+            \!=                     { symbol TNotEquals                           }
             \;                      { symbol TSemicolon                           }
             \{                      { symbol TCurlyOpen                           }
             \(                      { symbol TParenOpen                           }
@@ -32,12 +33,15 @@ tokens :-
             \}                      { symbol TCurlyClose                          }
             \)                      { symbol TParenClose                          }
             \]                      { symbol TSquareClose                         }
+            =                       { symbol TEqualsSign                          }
             \%                      { symbol TPercentSign                         }
             \>                      { symbol TGreaterThan                         }
+            =\>                     { symbol TBindingArrow                        }
             \?                      { symbol TQuestionMark                        }
             \<=                     { symbol TLessOrEqual                         }
             \>=                     { symbol TGreaterOrEqual                      }
             \!                      { symbol TExclamationMark                     }
+            \~\>                    { symbol TWavyBindingArrow                    }
             0 b [01]+               { simply $ TInteger . parseNumber 2  . drop 2 }
             0 c [0-7]+              { simply $ TInteger . parseNumber 8  . drop 2 }
             0 x $hex+               { simply $ TInteger . parseNumber 16 . drop 2 }
@@ -51,14 +55,12 @@ alexEOF :: Parser Token
 alexEOF = return (Token TEof (SourcePos "" 0 0) (SourcePos "" 0 0))
 
 simply :: (String -> TokenClass) -> AlexInput -> Int -> Parser Token
-simply t (LexerInput (SourcePos _ row col) s _ _) len = let pos = SourcePos "" row col
-                                                        in let epos = pos `offsetBy` len
-                                                           in return (Token (t $ take len s) pos epos)
+simply t (LexerInput pos s _ _) len = let epos = pos `offsetBy` len
+                                       in return (Token (t $ take len s) pos epos)
 
 symbol :: TokenClass -> AlexInput -> Int -> Parser Token
-symbol t (LexerInput (SourcePos _ row col) _ _ _) len = let pos = SourcePos "" row col
-                                                        in let epos = pos `offsetBy` len
-                                                           in return (Token t pos epos)
+symbol t (LexerInput pos _ _ _) len = let epos = pos `offsetBy` len
+                                       in return (Token t pos epos)
 
 parseNumber :: Num a => a -> String -> a
 parseNumber base = foldl (\acc digit -> acc * base + fromIntegral (digitToInt digit)) 0

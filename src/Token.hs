@@ -18,9 +18,11 @@ data TokenClass = TIdentifier String
                 | TAsterisk
                 | TLessThan
                 | TWildcard
+                | TNotEquals
                 | TSemicolon
                 | TCurlyOpen
                 | TParenOpen
+                | TEqualsSign
                 | TSquareOpen
                 | TCurlyClose
                 | TParenClose
@@ -28,9 +30,11 @@ data TokenClass = TIdentifier String
                 | TPercentSign
                 | TGreaterThan
                 | TLessOrEqual
+                | TBindingArrow
                 | TQuestionMark
                 | TGreaterOrEqual
                 | TExclamationMark
+                | TWavyBindingArrow
               deriving (Eq, Show)
 
 data Token = Token !TokenClass !SourcePos !SourcePos

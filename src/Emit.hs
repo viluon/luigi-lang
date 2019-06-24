@@ -80,6 +80,8 @@ cgen (P.ComparisonOperation op l r) = do
     right <- cgen r
     fn left right
         where fn = case op of
+                    P.Equals -> cmp FP.OEQ
+                    P.NotEquals -> cmp FP.ONE
                     P.LessThan -> cmp FP.ULT
                     P.GreaterThan -> cmp FP.UGT
                     P.LessOrEqual -> cmp FP.ULE

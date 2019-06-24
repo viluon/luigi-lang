@@ -15,9 +15,11 @@ import Parser.Wrapper
 %lexer { lexer } { Token TEof _ _ }
 %errorhandlertype explist
 
-%nonassoc '<' '>' '<=' '>='
+%left '~>' '=>'
+%nonassoc '<' '>' '<=' '>=' '!=' '=='
 %left '+' '-'
 %left '*' '/' '%'
+%left
 %left NEG
 
 %token
@@ -26,9 +28,10 @@ import Parser.Wrapper
     '/'             { Token TSlash _ _                          }
     '~'             { Token TTilde _ _                          }
     ','             { Token TColon _ _                          }
-    '='             { Token TEquals _ _                         }
+    '=='            { Token TEquals _ _                         }
     '<'             { Token TLessThan _ _                       }
     '*'             { Token TAsterisk _ _                       }
+    '!='            { Token TNotEquals _ _                      }
     ';'             { Token TSemicolon _ _                      }
     '{'             { Token TCurlyOpen _ _                      }
     '('             { Token TParenOpen _ _                      }
@@ -36,17 +39,24 @@ import Parser.Wrapper
     '}'             { Token TCurlyClose _ _                     }
     ')'             { Token TParenClose _ _                     }
     ']'             { Token TSquareClose _ _                    }
+    '='             { Token TEqualsSign _ _                     }
     '%'             { Token TPercentSign _ _                    }
     '>'             { Token TGreaterThan _ _                    }
     '<='            { Token TLessOrEqual _ _                    }
+    '=>'            { Token TBindingArrow _ _                   }
     '>='            { Token TGreaterOrEqual _ _                 }
     '!'             { Token TExclamationMark _ _                }
+    '~>'            { Token TWavyBindingArrow _ _               }
     fnIdent         { Token (TIdentifier "fn") _ _              }
     ident           { Token (TIdentifier $$) _ _                }
     int             { Token (TInteger $$) _ _                   }
     float           { Token (TFloat $$) _ _                     }
 
 %%
+
+Binding      :: { Expression }
+             :  Expr '=>' ident       { ImmutableBinding $1 $3 }
+             |  Expr '~>' ident       {   MutableBinding $1 $3 }
 
 Expr         :: { Expression }
              :  ident                    { Identifier $1                            }
@@ -61,6 +71,8 @@ Expr         :: { Expression }
              |  Expr '/' Expr            { ArithmeticOperation Div            $1 $3 }
              |  Expr '%' Expr            { ArithmeticOperation Mod            $1 $3 }
              |  Expr '*' Expr            { ArithmeticOperation Times          $1 $3 }
+             |  Expr '==' Expr           { ComparisonOperation Equals         $1 $3 }
+             |  Expr '!=' Expr           { ComparisonOperation NotEquals      $1 $3 }
              |  Expr '<' Expr            { ComparisonOperation LessThan       $1 $3 }
              |  Expr '>' Expr            { ComparisonOperation GreaterThan    $1 $3 }
              |  Expr '<=' Expr           { ComparisonOperation LessOrEqual    $1 $3 }
@@ -86,10 +98,6 @@ ExprBlock    :: { [Expression] }
 ListValue    :: { Expression }
              :  '[' ']'                  { ListValue []  }
              |  '[' ExprList ']'         { ListValue $2  }
-
-Binding      :: { Expression }
-             :  Expr '=' '>' ident       { ImmutableBinding $1 $4 }
-             |  Expr '~' '>' ident       {   MutableBinding $1 $4 }
 
 Call         :: { Expression }
              :  ident '(' ')'            { FunctionCall $1 []     }
@@ -129,7 +137,9 @@ data ArithmeticOperator = Mod
                         | Times
                         deriving (Show, Eq)
 
-data ComparisonOperator = LessThan
+data ComparisonOperator = Equals
+                        | NotEquals
+                        | LessThan
                         | GreaterThan
                         | LessOrEqual
                         | GreaterOrEqual

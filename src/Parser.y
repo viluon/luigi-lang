@@ -40,6 +40,8 @@ import Parser.Wrapper
     '>'             { Token TGreaterThan _ _                    }
     '<='            { Token TLessOrEqual _ _                    }
     '>='            { Token TGreaterOrEqual _ _                 }
+    '!'             { Token TExclamationMark _ _                }
+    fnIdent         { Token (TIdentifier "fn") _ _              }
     ident           { Token (TIdentifier $$) _ _                }
     int             { Token (TInteger $$) _ _                   }
     float           { Token (TFloat $$) _ _                     }
@@ -52,6 +54,7 @@ Expr         :: { Expression }
              |  float                    { FloatConstant $1                         }
              |  Call                     { $1                                       }
              |  Binding                  { $1                                       }
+             |  Function                 { $1                                       }
              |  ListValue                { $1                                       }
              |  Expr '+' Expr            { ArithmeticOperation Plus           $1 $3 }
              |  Expr '-' Expr            { ArithmeticOperation Minus          $1 $3 }
@@ -92,6 +95,17 @@ Call         :: { Expression }
              :  ident '(' ')'            { FunctionCall $1 []     }
              |  ident '(' ExprList ')'   { FunctionCall $1 $3     }
 
+Function     :: { Expression }
+             :  fnIdent '!' ident '(' ArgList ')' '{' ExprBlock '}' { FunctionDefinition $3 $5 (Block $8) }
+
+ArgListRev   :: { [String] }
+             :  {- empty -}         { []         }
+             | ident                { [$1]       }
+             | ArgListRev ',' ident { $3 : $1    }
+
+ArgList      :: { [String] }
+             : ArgListRev           { reverse $1 }
+
 {
 
 data Expression = Identifier String
@@ -102,6 +116,7 @@ data Expression = Identifier String
                 | FunctionCall String [Expression]
                 | MutableBinding Expression String
                 | ImmutableBinding Expression String
+                | FunctionDefinition String [String] Expression
                 | ArithmeticNegate Expression
                 | ArithmeticOperation ArithmeticOperator Expression Expression
                 | ComparisonOperation ComparisonOperator Expression Expression

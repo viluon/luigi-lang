@@ -142,7 +142,14 @@ local :: Name -> Operand
 local = LocalReference Codegen.double
 
 externf :: Name -> Operand
-externf = ConstantOperand . C.GlobalReference Codegen.double
+externf = ConstantOperand . C.GlobalReference (PointerType {
+      pointerReferent = FunctionType {
+          resultType = Codegen.double
+        , argumentTypes = []
+        , isVarArg = False
+      }
+    , pointerAddrSpace = AddrSpace 0
+})
 
 -- the symTable keeps track of register names <-> register numbers
 assign :: String -> Operand -> Codegen ()

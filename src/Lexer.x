@@ -9,37 +9,41 @@ import Data.Char (digitToInt)
 }
 
 $digit = [0-9]
+$hex = [0-9a-fA-F]
 $alpha = [a-zA-Z]
 @identifier = ($alpha($digit|$alpha|_)*|(($alpha|_)($digit|$alpha|_)+))'*
 
 tokens :-
             $white+                 ;
-            "--".*                  { trivial TComment                   }
-            \+                      { symbol TPlus                       }
-            \-                      { symbol TMinus                      }
-            \/                      { symbol TSlash                      }
-            \~                      { symbol TTilde                      }
-            \,                      { symbol TColon                      }
-            =                       { symbol TEquals                     }
-            \*                      { symbol TAsterisk                   }
-            \<                      { symbol TLessThan                   }
-            _                       { symbol TWildcard                   }
-            \;                      { symbol TSemicolon                  }
-            \{                      { symbol TCurlyOpen                  }
-            \(                      { symbol TParenOpen                  }
-            \[                      { symbol TSquareOpen                 }
-            \}                      { symbol TCurlyClose                 }
-            \)                      { symbol TParenClose                 }
-            \]                      { symbol TSquareClose                }
-            \%                      { symbol TPercentSign                }
-            \>                      { symbol TGreaterThan                }
-            \?                      { symbol TQuestionMark               }
-            \<=                     { symbol TLessOrEqual                }
-            \>=                     { symbol TGreaterOrEqual             }
-            \!                      { symbol TExclamationMark            }
-            $digit+                 { simply $ TInteger . parseNumber 10 }
-            @identifier             { simply TIdentifier                 }
-<string>    \"                      { endString                          }
+            "--".*                  { trivial TComment                            }
+            \+                      { symbol TPlus                                }
+            \-                      { symbol TMinus                               }
+            \/                      { symbol TSlash                               }
+            \~                      { symbol TTilde                               }
+            \,                      { symbol TColon                               }
+            =                       { symbol TEquals                              }
+            \*                      { symbol TAsterisk                            }
+            \<                      { symbol TLessThan                            }
+            _                       { symbol TWildcard                            }
+            \;                      { symbol TSemicolon                           }
+            \{                      { symbol TCurlyOpen                           }
+            \(                      { symbol TParenOpen                           }
+            \[                      { symbol TSquareOpen                          }
+            \}                      { symbol TCurlyClose                          }
+            \)                      { symbol TParenClose                          }
+            \]                      { symbol TSquareClose                         }
+            \%                      { symbol TPercentSign                         }
+            \>                      { symbol TGreaterThan                         }
+            \?                      { symbol TQuestionMark                        }
+            \<=                     { symbol TLessOrEqual                         }
+            \>=                     { symbol TGreaterOrEqual                      }
+            \!                      { symbol TExclamationMark                     }
+            0 b [01]+               { simply $ TInteger . parseNumber 2  . drop 2 }
+            0 c [0-7]+              { simply $ TInteger . parseNumber 8  . drop 2 }
+            0 x $hex+               { simply $ TInteger . parseNumber 16 . drop 2 }
+            $digit+                 { simply $ TInteger . parseNumber 10          }
+            @identifier             { simply TIdentifier                          }
+<string>    \"                      { endString                                   }
 
 {
 alexEOF :: Parser Token
@@ -55,10 +59,6 @@ symbol :: TokenClass -> AlexInput -> Int -> Parser Token
 symbol t (LexerInput (SourcePos _ row col) _ _ _) len = let pos = SourcePos "" row col
                                                         in let epos = pos `offsetBy` len
                                                            in return (Token t pos epos)
-
--- number :: Num a => (a -> TokenClass) -> AlexInput -> Int -> Parser Token
--- number t (LexerInput pos s _ _) len = let epos = pos `offsetBy` len
---                                       in return (Token (t $ take len s) pos epos)
 
 parseNumber :: Num a => a -> String -> a
 parseNumber base = foldl (\acc digit -> acc * base + fromIntegral (digitToInt digit)) 0

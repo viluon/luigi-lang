@@ -58,6 +58,12 @@ cgen e | trace ("cgen: " ++ show e) False = undefined
 cgen (P.FloatConstant n) = return $ constOp $ C.Float (F.Double n)
 cgen (P.IntegerConstant n) = return $ constOp $ C.Float (F.Double $ fromIntegral n)
 cgen (P.Identifier i) = getvar i >>= load
+cgen (P.ImmutableBinding expr name) = do
+    result <- cgen expr
+    var <- alloca double
+    assign name var
+    store result var
+    return var
 
 cgen (P.FunctionCall fn args) = do
     largs <- mapM cgen args
@@ -113,15 +119,11 @@ cgen (P.If cond bdy elseBdy) = do
 
 cgen (P.Block exprs) = do
     let n = length exprs
-     in forM (take (n - 1) exprs) $ \e -> cgen e
+     in traverse (\e -> cgen e) (take (n - 1) exprs)
     cgen $ last exprs
 
 liftError :: ExceptT String IO a -> IO a
 liftError = runExceptT >=> either fail return
-
-if' :: Bool -> a -> a -> a
-if' True  x _ = x
-if' False _ y = y
 
 codegenWrapper :: AST.Module -> [P.Expression] -> IO AST.Module
 codegenWrapper mod functions = withContext $ \context ->

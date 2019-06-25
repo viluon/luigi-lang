@@ -124,10 +124,13 @@ ArgList      :: { [String] }
 {
 
 data Expression = Identifier String
+                | Cast Expression
                 | IntegerConstant Int
                 | FloatConstant Double
                 | Block [Expression]
+                | Extern String [String]
                 | ListValue [Expression]
+                | FunctionReference String
                 | FunctionCall String [Expression]
                 | MutableBinding Expression String
                 | ImmutableBinding Expression String

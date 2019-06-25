@@ -1,0 +1,10 @@
+
+fn! factr(n) {
+	if (n == 1) then {
+		1
+	} else {
+		factr(n - 1) * n
+	}
+};
+
+print(factr(5))

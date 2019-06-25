@@ -3,6 +3,7 @@
 module Emit where
 
 import Codegen
+import LambdaLifting
 import qualified Parser as P
 
 import Debug.Trace (trace)
@@ -21,10 +22,10 @@ import qualified LLVM.AST.Float as F
 import qualified LLVM.AST.Constant as C
 import qualified LLVM.AST.FloatingPointPredicate as FP
 
-annotateArgTypes :: [String] -> [(AST.Type, AST.Name)]
-annotateArgTypes = map (\n -> (double, AST.Name $ toShort $ pack n))
+annotateArgTypes :: T.Type -> [String] -> [(AST.Type, AST.Name)]
+annotateArgTypes t = map (\n -> (t, AST.Name $ toShort $ pack n))
 
-one = const2operand $ C.Float (F.Double 1.0)
+one  = const2operand $ C.Float (F.Double 1.0)
 zero = const2operand $ C.Float (F.Double 0.0)
 
 codegen :: P.Expression -> LLVM ()
@@ -32,7 +33,7 @@ codegen e | trace ("codegen: " ++ show e) False = undefined
 codegen (P.FunctionDefinition name args body) = do
     define double name fnArgs blks
     where
-        fnArgs = annotateArgTypes args
+        fnArgs = annotateArgTypes double args
         blks = createBlocks $ execCodegen $ do
             entry <- addBlock entryBlockName
             setBlock entry
@@ -42,32 +43,47 @@ codegen (P.FunctionDefinition name args body) = do
                 assign argName var
             cgen body >>= ret
 
+codegen (P.Block exprs) = do
+    let n = length exprs
+     in traverse (\e -> codegen e) (take (n - 1) exprs)
+    codegen $ last exprs
+
+codegen (P.Extern name args) = do
+    external double name fnArgs
+    where fnArgs = annotateArgTypes T.i32 args
+
 codegen exp = do
-    define double "main" [] blks
+    define T.i32 "main" [] blks
     where
         blks = createBlocks $ execCodegen $ do
             entry <- addBlock entryBlockName
             setBlock entry
-            cgen exp >>= ret
+            fpResult <- cgen exp
+            result <- fptoui T.i32 fpResult
+            ret result
 
 constOp :: C.Constant -> AST.Operand
 constOp = AST.ConstantOperand
 
 cgen :: P.Expression -> Codegen AST.Operand
 cgen e | trace ("cgen: " ++ show e) False = undefined
+cgen (P.FunctionReference name) = return zero
 cgen (P.FloatConstant n) = return $ constOp $ C.Float (F.Double n)
 cgen (P.IntegerConstant n) = return $ constOp $ C.Float (F.Double $ fromIntegral n)
 cgen (P.Identifier i) = getvar i >>= load
 cgen (P.ImmutableBinding expr name) = do
     result <- cgen expr
     var <- alloca double
-    assign name var
+    assign name $ trace "hey so here I am" var
     store result var
     return var
 
 cgen (P.FunctionCall fn args) = do
     largs <- mapM cgen args
-    call (externf (length largs) (AST.Name $ toShort $ pack fn)) largs
+    call (externf tpe (length largs) (AST.Name $ toShort $ pack fn)) largs
+    where tpe = case fn of
+                    "putchar" -> T.i32
+                    _         -> Codegen.double
 
 cgen (P.ArithmeticOperation op l r) = do
     left <- cgen l
@@ -122,15 +138,27 @@ cgen (P.Block exprs) = do
      in traverse (\e -> cgen e) (take (n - 1) exprs)
     cgen $ last exprs
 
+cgen (P.Cast expr) = do
+    op <- cgen expr
+    fptoui T.i32 op
+
 liftError :: ExceptT String IO a -> IO a
 liftError = runExceptT >=> either fail return
 
+luigiPrelude :: [P.Expression]
+luigiPrelude = [ (P.Extern "putchar" ["char"])
+               , (P.FunctionDefinition "print" ["char"] (P.Block [
+                    (P.FunctionCall "putchar" [(P.Cast (P.Identifier "char"))])
+                  ]))
+               ]
+
 codegenWrapper :: AST.Module -> [P.Expression] -> IO AST.Module
-codegenWrapper mod functions = withContext $ \context ->
+codegenWrapper mod exprs = withContext $ \context ->
     withModuleFromAST context newAST $ \m -> do
         llstr <- moduleLLVMAssembly m
         BS.putStrLn llstr
         return newAST
     where
-        modn    = mapM codegen functions
-        newAST  = runLLVM mod modn
+        modn         = codegen $ P.Block $ luigiPrelude ++ exprs -- defs ++ [main]
+        -- (defs, main) = liftLambdas (P.Block exprs)
+        newAST       = runLLVM mod modn

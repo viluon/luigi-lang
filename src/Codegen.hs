@@ -9,7 +9,7 @@ import Data.ByteString.Short (ShortByteString, toShort)
 import Data.List (sortBy)
 import Data.Function (on)
 
-import Control.Monad.State
+import Control.Monad.State.Strict
 
 import LLVM.AST
 import LLVM.AST.Typed (typeOf)
@@ -141,11 +141,11 @@ fresh = do
 local :: Name -> Operand
 local = LocalReference Codegen.double
 
-externf :: Int -> Name -> Operand
-externf argCount = ConstantOperand . C.GlobalReference (PointerType {
+externf :: Type -> Int -> Name -> Operand
+externf t argCount = ConstantOperand . C.GlobalReference (PointerType {
       pointerReferent = FunctionType {
           resultType = Codegen.double
-        , argumentTypes = take argCount (repeat Codegen.double)
+        , argumentTypes = take argCount (repeat t)
         , isVarArg = False
       }
     , pointerAddrSpace = AddrSpace 0
@@ -220,6 +220,9 @@ fcmp cond a b = instr $ FCmp cond a b []
 
 uitofp :: Type -> Operand -> Codegen Operand
 uitofp tpe a = instr $ UIToFP a tpe []
+
+fptoui :: Type -> Operand -> Codegen Operand
+fptoui tpe a = instr $ FPToUI a tpe []
 
 -- branch
 br :: Name -> Codegen (Named Terminator)

@@ -15,6 +15,7 @@ import Parser.Wrapper
 %lexer { lexer } { Token TEof _ _ }
 %errorhandlertype explist
 
+%nonassoc 'for' 'in'
 %right 'if' 'then' 'else'
 %left '~>' '=>'
 %nonassoc '<' '>' '<=' '>=' '!=' '=='
@@ -25,6 +26,8 @@ import Parser.Wrapper
 
 %token
     'if'            { Token KIf _ _                             }
+    'in'            { Token KIn _ _                             }
+    'for'           { Token KFor _ _                            }
     'then'          { Token KThen _ _                           }
     'else'          { Token KElse _ _                           }
     '+'             { Token TPlus _ _                           }
@@ -63,6 +66,7 @@ Expr         :: { Expression }
              |  Call                     { $1                                       }
              |  IfExpr                   { $1                                       }
              |  Binding                  { $1                                       }
+             |  ForExpr                  { $1                                       }
              |  Function                 { $1                                       }
              |  ListValue                { $1                                       }
              |  Expr '+' Expr            { ArithmeticOperation Plus           $1 $3 }
@@ -87,6 +91,9 @@ Binding      :: { Expression }
 IfExpr       :: { Expression }
              :  'if' Expr 'then' Expr              { If $2 $4 Nothing    }
              |  'if' Expr 'then' Expr 'else' Expr  { If $2 $4 (Just $6)  }
+
+ForExpr      :: { Expression }
+             :  'for' Expr '=>' ident ',' Expr ',' Expr 'in' Expr { For $4 $2 $6 $8 $10 }
 
 ExprListRev  :: { [Expression] }
              :  Expr                     { [$1]          }
@@ -139,6 +146,7 @@ data Expression = Identifier String
                 | ArithmeticNegate Expression
                 | ArithmeticOperation ArithmeticOperator Expression Expression
                 | ComparisonOperation ComparisonOperator Expression Expression
+                | For String Expression Expression Expression Expression
                 deriving (Show, Eq)
 
 data ArithmeticOperator = Mod

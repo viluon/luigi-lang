@@ -133,6 +133,30 @@ cgen (P.If cond bdy elseBdy) = do
     setBlock ifexit
     phi double [(body, ifthen), (elseBody, ifelse)]
 
+cgen (P.For name initial cond delta body) = do
+    forLoop <- addBlock "for.loop"
+    forExit <- addBlock "for.exit"
+    i <- alloca double
+    start <- cgen initial
+    step <- cgen delta
+
+    store i start
+    assign name i
+    br forLoop
+
+    setBlock forLoop
+    cgen body
+    current <- load i
+    next <- fadd current step
+    store i next
+
+    cond <- cgen cond
+    test <- fcmp FP.ONE zero cond
+    cbr test forLoop forExit
+
+    setBlock forExit
+    return zero
+
 cgen (P.Block exprs) = do
     let n = length exprs
      in traverse (\e -> cgen e) (take (n - 1) exprs)

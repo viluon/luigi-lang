@@ -9,6 +9,8 @@ data TokenClass = TIdentifier String
                 | TInteger Int
                 | TEscape Char
                 | KIf
+                | KIn
+                | KFor
                 | KThen
                 | KElse
                 | TEof

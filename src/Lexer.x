@@ -17,8 +17,10 @@ tokens :-
             $white+                 ;
             "--".*                  { trivial TComment                            }
             "if"                    { symbol KIf                                  }
+            "in"                    { symbol KIn                                  }
             "then"                  { symbol KThen                                }
             "else"                  { symbol KElse                                }
+            "for"                   { symbol KFor                                 }
             \+                      { symbol TPlus                                }
             \-                      { symbol TMinus                               }
             \/                      { symbol TSlash                               }
